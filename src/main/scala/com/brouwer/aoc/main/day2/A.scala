@@ -35,12 +35,20 @@ object A extends App {
       Game(gameId, cubes.zipWithIndex.map { case (cubes, index) => index -> cubes }.toMap)
     }
 
-  val totalGames = r.filter(_.canBePlayed(Cubes(red = 12, green = 13, blue = 14))).map(_.id.toInt).sum
-  println(totalGames)
+  val solutionPart1 = r.filter(_.canBePlayed(Cubes(red = 12, green = 13, blue = 14))).map(_.id.toInt).sum
+  println(solutionPart1)
+  val solutionPart2 = r.map(_.leastCubesNeededPower).sum
+  println(solutionPart2)
 }
 
 case class Game(id: String, sets: Map[Int, Cubes]) {
   def canBePlayed(toCheck: Cubes): Boolean = sets.values.forall(_.canBePlayed(toCheck))
+  def leastCubesNeededPower: Int = {
+    val red = sets.values.map(_.red).max
+    val green = sets.values.map(_.green).max
+    val blue = sets.values.map(_.blue).max
+    red * blue * green
+  }
 }
 case class Cubes(red: Int = 0, green: Int = 0, blue: Int = 0) {
   def canBePlayed(toCheck: Cubes): Boolean = red <= toCheck.red && green <= toCheck.green && blue <= toCheck.blue
