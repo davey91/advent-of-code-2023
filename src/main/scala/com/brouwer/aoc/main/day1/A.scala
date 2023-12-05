@@ -11,13 +11,11 @@ object A extends App {
     .toSeq
     .map(_.filter(_.isDigit))
     .map {
-      case s if s.length == 2 =>
-        s"${s.head}${s.tail}".toInt
       case s if s.length == 1 =>
         s"${s.head}${s.head}".toInt
       case s =>
         s"${s.head}${s.last}".toInt
-    }.tapEach(println).sum
+    }.sum
 
   println(r)
 }
