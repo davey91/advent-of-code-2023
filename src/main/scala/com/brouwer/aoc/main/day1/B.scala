@@ -54,7 +54,5 @@ object B extends App {
     })
     .sum
 
-  // 55686
-
   println(r)
 }
