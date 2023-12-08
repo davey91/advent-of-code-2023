@@ -29,12 +29,10 @@ object A extends App with SimpleParser {
     .getLines()
     .toSeq
     .map(parse(cardWithGames, _))
-    .map {
-      case Success(matched, _) => matched.totalPoints
-      case Failure(_, _) => 0
-      case Error(_, _) => 0
-    }.sum
+    .map(_.get)
 
-  println(r)
+  val solutionA = r.map(_.totalPoints).sum
+
+  println(solutionA)
 
 }
