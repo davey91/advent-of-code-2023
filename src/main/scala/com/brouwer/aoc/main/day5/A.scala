@@ -2,7 +2,9 @@ package com.brouwer.aoc.main.day5
 
 import com.brouwer.aoc.main.day5.SeedsAndMapping._
 
+import java.time.Instant
 import scala.collection.immutable.NumericRange
+import scala.collection.parallel.immutable.{ParSeq, ParVector}
 import scala.io.Source
 import scala.util.parsing.combinator.RegexParsers
 
@@ -10,7 +12,10 @@ trait SeedsParser extends RegexParsers {
   private val number: Parser[Long] = """(0|[1-9]\d*)""".r ^^ { _.toLong }
   def seedsPrefix: Parser[String] = """[seeds:]+""".r ^^ { _.toString }
 
-  def seeds = seedsPrefix ~ rep(number) ^^ { case _ ~ seeds => Seeds(seeds) }
+  def seedStartAndRange: Parser[NumericRange[Long]] = number ~ number ^^ { case start ~ range => start until start + range }
+
+  def seedsA = seedsPrefix ~ rep(number) ^^ { case _ ~ seeds => Seeds.fromSeq(seeds) }
+  def seedsB = seedsPrefix ~ rep(seedStartAndRange) ^^ { case _ ~ seeds => Seeds(seeds) }
 }
 
 trait DestinationSourceParser extends RegexParsers {
@@ -21,7 +26,7 @@ trait DestinationSourceParser extends RegexParsers {
   }
 }
 
-object A extends App with SeedsParser with DestinationSourceParser {
+object A3 extends App with SeedsParser with DestinationSourceParser {
 
   val file = Source.fromResource("day5-1.txt")
 
@@ -30,8 +35,9 @@ object A extends App with SeedsParser with DestinationSourceParser {
     .toSeq
     .foldLeft(SeedsAndMapping.empty) { case (seedsAndMapping, line) =>
       line match {
-        case line if line.isBlank                                    => seedsAndMapping
-        case line if line.startsWith("seeds:")                       => SeedsAndMapping(parse(seeds, line).get, Map.empty, Empty)
+        case line if line.isBlank => seedsAndMapping
+        // case line if line.startsWith("seeds:") => SeedsAndMapping(parse(seedsA, line).get, Map.empty, Empty)
+        case line if line.startsWith("seeds:")                       => SeedsAndMapping(parse(seedsB, line).get, Map.empty, Empty)
         case line if line.startsWith("seed-to-soil map:")            => seedsAndMapping.copy(currentKey = SeedToSoil)
         case line if line.startsWith("soil-to-fertilizer map:")      => seedsAndMapping.copy(currentKey = SoilToFertilizer)
         case line if line.startsWith("fertilizer-to-water map:")     => seedsAndMapping.copy(currentKey = FertilizerToWater)
@@ -43,13 +49,12 @@ object A extends App with SeedsParser with DestinationSourceParser {
       }
     }
 
-  val solutionA = seedsAndMapping.findLocations.min
-  println(solutionA)
-
+  val solution = seedsAndMapping.findLocations
+  println(solution) // B=1928058
 }
 
 object SeedsAndMapping {
-  def empty = SeedsAndMapping(Seeds(Nil), Map.empty, Empty)
+  def empty = SeedsAndMapping(Seeds.empty, Map.empty, Empty)
   sealed trait MapType
   case object Empty extends MapType
   case object SeedToSoil extends MapType
@@ -64,7 +69,15 @@ object SeedsAndMapping {
     Seq(SeedToSoil, SoilToFertilizer, FertilizerToWater, WaterToLight, LightToTemperature, TemperatureToHumidity, HumidityToLocation)
 }
 
-case class Seeds(seeds: Seq[Long])
+object Seeds {
+  def fromSeq(seeds: Seq[Long]): Seeds = {
+    Seeds(seeds.map(l => l until l + 1))
+  }
+
+  val empty: Seeds = Seeds(Nil)
+}
+
+case class Seeds(seeds: Seq[NumericRange[Long]])
 object DestinationAndSourceRange {
   def apply(destination: Long, source: Long, range: Long): DestinationAndSourceRange = {
     DestinationAndSourceRange(destination until destination + range, source until source + range)
@@ -72,8 +85,15 @@ object DestinationAndSourceRange {
 }
 case class DestinationAndSourceRange(destinationRange: NumericRange[Long], sourceRange: NumericRange[Long]) {
   def findDestination(from: Long) = {
-    sourceRange.find(_ == from).map(_ - sourceRange.start).map(index => destinationRange(index.toInt)).get
+    val maybeFind = (from >= sourceRange.start, from <= sourceRange.end) match {
+      case (true, true) => Some(from)
+      case _            => None
+    }
+
+    val onFind = maybeFind.map(_ - sourceRange.start)
+    onFind.map(index => destinationRange(index.toInt)).get
   }
+
 }
 
 case class SeedsAndMapping(seeds: Seeds, map: Map[MapType, Seq[DestinationAndSourceRange]], currentKey: MapType) {
@@ -85,8 +105,13 @@ case class SeedsAndMapping(seeds: Seeds, map: Map[MapType, Seq[DestinationAndSou
   }
 
   def findLocations = {
-    seeds.seeds.map(seed => {
-      All.foldLeft(seed)((toFind, mapType) => findInRange(mapType, toFind))
+    seeds.seeds.foldLeft(Long.MaxValue)((minRange, seedRange) => {
+      Math.min(
+        minRange,
+        seedRange.foldLeft(Long.MaxValue)((minSeed, seed) =>
+          Math.min(minSeed, All.foldLeft(seed)((toFind, mapType) => findInRange(mapType, toFind)))
+        )
+      )
     })
   }
 }
