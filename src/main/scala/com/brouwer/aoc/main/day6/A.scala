@@ -33,8 +33,8 @@ object A extends App with TimeAndDestinationParser {
 
 }
 
-case class TimeAndDistance(time: Int, distance: Int) {
-  val calculateDistances = 0 to time map(timeToUse => timeToUse * 1 * (time - timeToUse))
+case class TimeAndDistance(time: Long, distance: Long) {
+  val calculateDistances = 0L to time map(timeToUse => timeToUse * 1L * (time - timeToUse))
 
   val nrOfWaysToBeatDistance = calculateDistances.count(_ > distance)
 }
